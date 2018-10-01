@@ -1,0 +1,64 @@
+---
+title: "Random Forest on exercise"
+author: "Jonathan Lin"
+date: "September 30, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Summary
+
+In this exercise, we will run a Random Forest classification prediction on training data from the <a href="http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har">Weight Lifting Exercise Data set</a>.
+
+We when take our model and apply it to the unseen test data set and make predictions on which "classe" each observation belongs to.
+
+The "classe" variable is our outcome which responds to the type of exercise performed during the experiment. The other variables generally relate to specific movements recorded on accelerometers attached to subject body part.
+
+## Loading and cleaning data
+
+First we load our libraries, and download and load the data. Then to clean up the data, we remove variables with missing values. We also remove the username, timestamp and row number columns, as these won't be helpful in making a generalize prediction on new data.
+
+```{r starts}
+library(caret)
+library(dplyr)
+library(randomForest)
+
+set.seed(48)
+
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", "pml-training.csv")
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", "pml-testing.csv")
+training <- read.csv("pml-training.csv", header=TRUE, na.strings = c("NA", "NaN", "", "#DIV/0!"))
+anyna <- sapply(training, function(x) any(is.na(x)))
+training <- training[, anyna==FALSE]
+training <- subset(training, select=-c(X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp))
+testing <- read.csv("pml-testing.csv", header=TRUE, na.strings = c("NA", "NaN", "", "#DIV/0!"))
+testing <- subset(testing, select=-c(X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp))
+train_cols <- colnames(training)
+train_cols <- train_cols[train_cols != "classe"]
+testing <- testing[, train_cols]
+```
+
+## Model training
+
+The outcome "classe" is a factor variable with 5 classes labeled A~E. Random Forest tends to do its own form of cross-validation, so we won't be doing and sorts of preprocessing steps for this example. Instead, we let random forest make the resampling it needs via the defaults in caret. We will use all of the remaning variables as predictors.
+
+```{r train, echo=FALSE}
+fit <- train(classe ~., data = training, method="rf", na.action=na.omit)
+```
+
+Next, we can look at the results of the final model to see the oob error rate. We and also observe the accuracy for the model at various mtry and see which model worked best.
+
+```{r, model}
+print(fit)
+print(fit$finalModel)
+```
+
+Last, we can fit our model on the test data and return a prediction.
+
+```{r, test}
+predictions <- predict.train(fit, testing, type="raw")
+print(predictions)
+```
